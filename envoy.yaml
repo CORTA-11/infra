@@ -12,12 +12,18 @@ static_resources:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_http
           codec_type: AUTO
+          upgrade_configs:
+          - upgrade_type: websocket
           route_config:
             name: application
             virtual_hosts:
             - name: application
               domains: ["*"]
               routes:
+              - match:
+                  prefix: "/ws"
+                route:
+                  cluster: socket
               - match:
                   prefix: "/api/"
                 route:
@@ -58,6 +64,19 @@ static_resources:
               socket_address:
                 address: web
                 port_value: 3000
+  - name: socket
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: socket
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: socket-server
+                port_value: 8081
 
 admin:
   address:
