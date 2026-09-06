@@ -21,6 +21,10 @@ static_resources:
               domains: ["*"]
               routes:
               - match:
+                  path: "/ws/docs"
+                route:
+                  cluster: collaboration
+              - match:
                   prefix: "/ws"
                 route:
                   cluster: socket
@@ -77,6 +81,19 @@ static_resources:
               socket_address:
                 address: socket-server
                 port_value: 8081
+  - name: collaboration
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: collaboration
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: collaboration-server
+                port_value: 8082
 
 admin:
   address:

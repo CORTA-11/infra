@@ -16,8 +16,9 @@ These instructions apply to the entire `infra` repository.
   Keep it small and declarative; application behavior belongs in the service
   repositories.
 - `compose.yaml` starts Envoy on the external `synodus-network`.
-  `envoy.yaml` routes `/api/` to `api:8080`, `/ws` to
-  `socket-server:8081`, and all other traffic to `web:3000`.
+  `envoy.yaml` routes `/api/` to `api:8080`, `/ws/docs` to
+  `collaboration-server:8082`, other `/ws` traffic to `socket-server:8081`,
+  and all other traffic to `web:3000`.
 - Route order is significant: keep the WebSocket and API routes before the `/`
   catch-all. Preserve WebSocket upgrade configuration when editing listeners.
 - Coordinate upstream names, ports, path prefixes, and public origins with

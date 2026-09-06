@@ -5,7 +5,10 @@ Envoy exposes the local Docker stack at `http://localhost:10000`.
 Routes:
 
 - `/api/` forwards to `core-api` on port 8080.
-- `/ws` forwards WebSocket upgrades to `socket-server` on port 8081.
+- `/ws/docs` forwards Document collaboration upgrades to the independent
+  `collaboration-server` on port 8082.
+- other `/ws` requests continue to forward to the Go `socket-server` on port
+  8081.
 - everything else forwards to `web-frontend` on port 3000.
 
 Start it after the backend and frontend services have joined the shared
