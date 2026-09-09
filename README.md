@@ -32,7 +32,14 @@ cp -n .env.example .env
 cp -R dev_secrets .local_secrets
 docker compose up -d postgres redis minio
 make bootstrap-db
+make seed
+make assign-org-owner ORG_ID=30ee7153-9b48-4560-8cbf-972587a60fda USER_ID=0d5a4f4e-8d3b-4f17-9a79-4c38e29a6d11
+make assign-org-owner ORG_ID=f1810095-f8a0-4e27-83df-d88b3256604d USER_ID=0d5a4f4e-8d3b-4f17-9a79-4c38e29a6d11
+make assign-org-owner ORG_ID=afb118ba-2ade-4422-9f20-04754fd1d4a7 USER_ID=0d5a4f4e-8d3b-4f17-9a79-4c38e29a6d11
+make verify-org-owners
 make bootstrap
+export RATE_LIMIT_LOGIN_IP_LIMIT=100
+export RATE_LIMIT_LOGIN_IP_BURST=100
 docker compose up --build -d api socket-server collaboration-server
 
 cd ../web-frontend
