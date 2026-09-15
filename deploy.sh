@@ -40,6 +40,32 @@ ensure_env_secret "JWT_SECRET" 32
 ensure_env_secret "COLLABORATION_SERVICE_SECRET" 32
 ensure_env_secret "CURSOR_SECRET" 32
 
+# Ensure geeth.cf allowed origins in .env
+env_file="$SCRIPT_DIR/.env"
+if grep -q "app.yourdomain.com" "$env_file" 2>/dev/null; then
+    sed -i "s|https://app.yourdomain.com|https://geeth.cf,https://www.geeth.cf|g" "$env_file"
+    echo "--> Updated origins for geeth.cf in .env"
+fi
+if ! grep -q "^HTTP_ALLOWED_ORIGINS=" "$env_file" 2>/dev/null; then
+    echo "HTTP_ALLOWED_ORIGINS=https://geeth.cf,https://www.geeth.cf" >> "$env_file"
+fi
+if ! grep -q "^SOCKET_ALLOWED_ORIGINS=" "$env_file" 2>/dev/null; then
+    echo "SOCKET_ALLOWED_ORIGINS=https://geeth.cf,https://www.geeth.cf" >> "$env_file"
+fi
+
+# Ensure self-signed TLS certificates exist for Envoy port 443
+if [ ! -f "$SCRIPT_DIR/certs/privkey.pem" ] || [ ! -f "$SCRIPT_DIR/certs/fullchain.pem" ]; then
+    echo "--> Generating TLS certificate for Envoy HTTPS..."
+    mkdir -p "$SCRIPT_DIR/certs"
+    openssl req -x509 -newkey rsa:2048 -nodes \
+        -keyout "$SCRIPT_DIR/certs/privkey.pem" \
+        -out "$SCRIPT_DIR/certs/fullchain.pem" \
+        -days 3650 \
+        -subj "/CN=geeth.cf"
+    chmod 644 "$SCRIPT_DIR/certs"/*
+    chmod 755 "$SCRIPT_DIR/certs"
+fi
+
 # Generate missing secrets if needed
 if [ -f "./generate-secrets.sh" ]; then
     ./generate-secrets.sh >/dev/null 2>&1 || true

@@ -1,6 +1,6 @@
 static_resources:
   listeners:
-  - name: ingress
+  - name: ingress_http
     address:
       socket_address:
         address: 0.0.0.0
@@ -15,7 +15,58 @@ static_resources:
           upgrade_configs:
           - upgrade_type: websocket
           route_config:
-            name: application
+            name: application_http
+            virtual_hosts:
+            - name: application
+              domains: ["*"]
+              routes:
+              - match:
+                  path: "/ws/docs"
+                route:
+                  cluster: collaboration
+              - match:
+                  prefix: "/ws"
+                route:
+                  cluster: socket
+              - match:
+                  prefix: "/api/"
+                route:
+                  cluster: api
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: web
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  - name: ingress_https
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 10443
+    filter_chains:
+    - transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            tls_certificates:
+            - certificate_chain:
+                filename: /etc/envoy/certs/fullchain.pem
+              private_key:
+                filename: /etc/envoy/certs/privkey.pem
+      filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_https
+          codec_type: AUTO
+          upgrade_configs:
+          - upgrade_type: websocket
+          route_config:
+            name: application_https
             virtual_hosts:
             - name: application
               domains: ["*"]
