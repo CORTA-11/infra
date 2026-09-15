@@ -12,30 +12,17 @@ static_resources:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_http
           codec_type: AUTO
-          upgrade_configs:
-          - upgrade_type: websocket
           route_config:
-            name: application_http
+            name: redirect_to_https
             virtual_hosts:
-            - name: application
+            - name: backend
               domains: ["*"]
               routes:
               - match:
-                  path: "/ws/docs"
-                route:
-                  cluster: collaboration
-              - match:
-                  prefix: "/ws"
-                route:
-                  cluster: socket
-              - match:
-                  prefix: "/api/"
-                route:
-                  cluster: api
-              - match:
                   prefix: "/"
-                route:
-                  cluster: web
+                redirect:
+                  https_redirect: true
+                  response_code: MOVED_PERMANENTLY
           http_filters:
           - name: envoy.filters.http.router
             typed_config:
