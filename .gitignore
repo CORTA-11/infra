@@ -1,5 +1,6 @@
 # Secrets and environment variables
 secrets/
+certs/
 .env
 .env.local
 .env.prod
