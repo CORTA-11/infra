@@ -1,0 +1,237 @@
+services:
+
+  envoy:
+    image: envoyproxy/envoy:distroless-dev-9c085ba4a27fddea1811a8ecc98fc094dbdd455c
+    restart: unless-stopped
+    command: ["-c", "/etc/envoy/envoy.yaml"]
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    ports:
+      - "10000:10000"
+      - "9901:9901"
+    depends_on:
+      - web
+      - api
+      - socket-server
+      - collaboration-server
+    networks:
+      - synodus-network
+
+  web:
+    image: ghcr.io/corta-11/web-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      API_PROXY_TARGET: http://api:8080
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - synodus-network
+
+  api:
+    image: ghcr.io/corta-11/core-api:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: :8080
+      HTTP_ALLOWED_ORIGINS: ${HTTP_ALLOWED_ORIGINS:-http://localhost:10000,http://127.0.0.1:10000}
+      HTTP_TRUSTED_PROXY_CIDRS: ${HTTP_TRUSTED_PROXY_CIDRS:-}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-appdb}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CHAT_CHANNEL: ${REDIS_CHAT_CHANNEL:-corta:chat:events}
+      JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-synodus-files}
+      MINIO_USE_SSL: "false"
+      CURSOR_KEY_ID: ${CURSOR_KEY_ID:-production-v1}
+      CURSOR_SECRET: ${CURSOR_SECRET}
+    secrets:
+      - source: db_runtime_password
+        target: db_runtime_password.txt
+      - source: minio_access_key
+        target: minio_access_key
+      - source: minio_secret_key
+        target: minio_secret_key.txt
+      - source: rate_limit_secret
+        target: redis_limit_secret.txt
+      - source: invitation_binding_secret
+        target: redis_invitation_binding_secret.txt
+      - source: csrf_secret
+        target: csrf_secret.txt
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - synodus-network
+
+  socket-server:
+    image: ghcr.io/corta-11/socket-server:latest
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CHAT_CHANNEL: ${REDIS_CHAT_CHANNEL:-corta:chat:events}
+      SOCKET_ALLOWED_ORIGINS: ${SOCKET_ALLOWED_ORIGINS:-http://localhost:10000,http://127.0.0.1:10000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - synodus-network
+
+  collaboration-server:
+    image: ghcr.io/corta-11/collaboration-server:latest
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      COLLABORATION_HOST: 0.0.0.0
+      COLLABORATION_PORT: "8082"
+      CORE_API_INTERNAL_URL: http://api:8080
+      COLLABORATION_SERVICE_SECRET: ${COLLABORATION_SERVICE_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      SOCKET_ALLOWED_ORIGINS: ${SOCKET_ALLOWED_ORIGINS:-http://localhost:10000,http://127.0.0.1:10000}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - synodus-network
+
+  provisioner:
+    image: ghcr.io/corta-11/core-api:latest
+    restart: unless-stopped
+    entrypoint: ["/usr/local/bin/provisioner"]
+    command: ["run"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-appdb}
+      PROVISIONER_POLL_INTERVAL: ${PROVISIONER_POLL_INTERVAL:-5s}
+      PROVISIONER_RETRY_INITIAL: ${PROVISIONER_RETRY_INITIAL:-5s}
+      PROVISIONER_RETRY_MAXIMUM: ${PROVISIONER_RETRY_MAXIMUM:-5m}
+      PROVISIONER_MAX_ATTEMPTS: ${PROVISIONER_MAX_ATTEMPTS:-5}
+      PROVISIONER_CONCURRENCY: ${PROVISIONER_CONCURRENCY:-4}
+      PROVISIONER_OPERATION_TIMEOUT: ${PROVISIONER_OPERATION_TIMEOUT:-2m}
+      PROVISIONER_SHUTDOWN_TIMEOUT: ${PROVISIONER_SHUTDOWN_TIMEOUT:-10s}
+    secrets:
+      - source: db_provisioner_password
+        target: db_provisioner_password.txt
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - synodus-network
+
+  postgres:
+    image: postgres:18
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER_FILE: /run/secrets/db_admin_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin_password
+      POSTGRES_DB: ${DB_NAME:-appdb}
+    secrets:
+      - db_admin_user
+      - db_admin_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_admin_user) -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - synodus-network
+
+  redis:
+    image: redis:8.8.1
+    restart: always
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis_data:/data
+    networks:
+      - synodus-network
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server --console-address ":9001" /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - synodus-network
+
+networks:
+  synodus-network:
+    name: synodus-network
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+secrets:
+  db_admin_user:
+    file: ./secrets/db_admin_user.txt
+  db_admin_password:
+    file: ./secrets/db_admin_password.txt
+  minio_root_user:
+    file: ./secrets/minio_root_user.txt
+  minio_root_password:
+    file: ./secrets/minio_root_password.txt
+  db_runtime_password:
+    file: ./secrets/db_runtime_password.txt
+  db_provisioner_password:
+    file: ./secrets/db_provisioner_password.txt
+  minio_access_key:
+    file: ./secrets/minio_access_key
+  minio_secret_key:
+    file: ./secrets/minio_secret_key.txt
+  rate_limit_secret:
+    file: ./secrets/redis_limit_secret.txt
+  invitation_binding_secret:
+    file: ./secrets/redis_invitation_binding_secret.txt
+  csrf_secret:
+    file: ./secrets/csrf_secret.txt

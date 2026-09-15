@@ -1,0 +1,5 @@
+# Secrets and environment variables
+secrets/
+.env
+.env.local
+.env.prod
