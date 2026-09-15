@@ -45,6 +45,25 @@ if [ -f "./generate-secrets.sh" ]; then
     ./generate-secrets.sh >/dev/null 2>&1 || true
 fi
 
+# Ensure MinIO keys are set in .env
+if [ -f "secrets/minio_root_user.txt" ] && [ -f "secrets/minio_root_password.txt" ]; then
+    MINIO_U="$(tr -d '\r\n' < secrets/minio_root_user.txt)"
+    MINIO_P="$(tr -d '\r\n' < secrets/minio_root_password.txt)"
+    export MINIO_ACCESS_KEY="$MINIO_U"
+    export MINIO_SECRET_KEY="$MINIO_P"
+    env_file="$SCRIPT_DIR/.env"
+    if ! grep -q "^MINIO_ACCESS_KEY=" "$env_file"; then
+        echo "MINIO_ACCESS_KEY=${MINIO_U}" >> "$env_file"
+    else
+        sed -i "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=${MINIO_U}|" "$env_file"
+    fi
+    if ! grep -q "^MINIO_SECRET_KEY=" "$env_file"; then
+        echo "MINIO_SECRET_KEY=${MINIO_P}" >> "$env_file"
+    else
+        sed -i "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=${MINIO_P}|" "$env_file"
+    fi
+fi
+
 # 1. Pull latest image(s) from ghcr.io
 echo "--> Pulling latest image(s)..."
 if [ -n "$SERVICE" ]; then
@@ -81,7 +100,7 @@ else
     fi
 
     echo "--> Updating and starting all application services..."
-    if ! docker compose -f "$COMPOSE_FILE" up -d; then
+    if ! docker compose -f "$COMPOSE_FILE" up -d --force-recreate; then
         echo "--------------------------------------------------"
         echo " [Error Diagnostics] Deployment failed! Container logs:"
         echo ">>> infra-api-1 logs:"
