@@ -226,9 +226,9 @@ secrets:
   db_provisioner_password:
     file: ./secrets/db_provisioner_password.txt
   minio_access_key:
-    file: ./secrets/minio_access_key
+    file: ./secrets/minio_root_user.txt
   minio_secret_key:
-    file: ./secrets/minio_secret_key.txt
+    file: ./secrets/minio_root_password.txt
   rate_limit_secret:
     file: ./secrets/redis_limit_secret.txt
   invitation_binding_secret:

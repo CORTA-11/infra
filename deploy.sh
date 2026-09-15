@@ -24,9 +24,35 @@ if [ -n "$SERVICE" ]; then
     docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
     echo "--> Restarting $SERVICE (without touching dependencies)..."
     docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
-else
     docker compose -f "$COMPOSE_FILE" pull
-    echo "--> Updating all containers..."
+
+    echo "--> Ensuring database and storage services are up..."
+    docker compose -f "$COMPOSE_FILE" up -d postgres redis minio
+
+    # Wait for postgres to report healthy
+    echo "--> Waiting for PostgreSQL to be healthy..."
+    for i in $(seq 1 30); do
+        PG_CID=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null || true)
+        if [ -n "$PG_CID" ]; then
+            STATUS=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$PG_CID" 2>/dev/null || true)
+            if [ "$STATUS" = "healthy" ]; then
+                break
+            fi
+        fi
+        sleep 1
+    done
+
+    # Run database initialization if script is present
+    if [ -f "./init-db.sh" ]; then
+        ./init-db.sh
+    fi
+
+    # Ensure MinIO bucket exists
+    if [ -f "./init-minio.sh" ]; then
+        ./init-minio.sh || true
+    fi
+
+    echo "--> Updating and starting all application services..."
     docker compose -f "$COMPOSE_FILE" up -d
 fi
 
@@ -38,6 +64,20 @@ docker image prune -f
 echo "--> Checking container status..."
 sleep 2
 docker compose -f "$COMPOSE_FILE" ps
+
+RESTARTING=$(docker compose -f "$COMPOSE_FILE" ps --filter "status=restarting" -q 2>/dev/null || true)
+if [ -n "$RESTARTING" ]; then
+    echo "--------------------------------------------------"
+    echo " [Diagnostics] Detected restarting container(s):"
+    docker compose -f "$COMPOSE_FILE" ps --filter "status=restarting"
+    echo "--------------------------------------------------"
+    for cid in $RESTARTING; do
+        cname=$(docker inspect --format='{{.Name}}' "$cid" 2>/dev/null | sed 's/^\///')
+        echo ">>> Last 25 log lines for $cname:"
+        docker logs "$cid" --tail 25 2>&1 || true
+        echo "--------------------------------------------------"
+    done
+fi
 
 echo "=================================================="
 echo " [CORTA Deploy] Successfully updated!"
