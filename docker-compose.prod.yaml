@@ -113,9 +113,12 @@ services:
       CORE_API_INTERNAL_URL: http://api:8080
       COLLABORATION_SERVICE_SECRET: ${COLLABORATION_SERVICE_SECRET}
       JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: redis://redis:6379/0
       SOCKET_ALLOWED_ORIGINS: ${SOCKET_ALLOWED_ORIGINS:-http://localhost:10000,http://127.0.0.1:10000}
     depends_on:
       api:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - synodus-network

@@ -20,17 +20,11 @@ fi
 cp secrets/minio_root_user.txt secrets/minio_access_key
 cp secrets/minio_root_password.txt secrets/minio_secret_key.txt
 
-echo "--> Setting MinIO alias..."
-docker run --rm --network synodus-network quay.io/minio/mc \
-    alias set myminio http://minio:9000 "$MINIO_USER" "$MINIO_PASS"
-
-echo "--> Ensuring bucket '$BUCKET_NAME' exists..."
-docker run --rm --network synodus-network quay.io/minio/mc \
-    mb --ignore-existing "myminio/$BUCKET_NAME"
-
-echo "--> Verifying bucket status in MinIO..."
-docker run --rm --network synodus-network quay.io/minio/mc \
-    stat "myminio/$BUCKET_NAME" || true
+echo "--> Configuring MinIO and ensuring bucket '$BUCKET_NAME' exists..."
+docker run --rm --network synodus-network --entrypoint /bin/sh quay.io/minio/mc -c \
+    "mc alias set myminio http://minio:9000 '$MINIO_USER' '$MINIO_PASS' && \
+     mc mb --ignore-existing 'myminio/$BUCKET_NAME' && \
+     mc stat 'myminio/$BUCKET_NAME'"
 
 echo "=========================================="
 echo " MinIO initialization complete!"
