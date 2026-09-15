@@ -52,6 +52,8 @@ services:
       MINIO_USE_SSL: "false"
       CURSOR_KEY_ID: ${CURSOR_KEY_ID:-production-v1}
       CURSOR_SECRET: ${CURSOR_SECRET}
+      COLLABORATION_SERVICE_SECRET: ${COLLABORATION_SERVICE_SECRET}
+      COLLABORATION_INTERNAL_URL: ${COLLABORATION_INTERNAL_URL:-http://collaboration-server:8082}
     secrets:
       - source: db_runtime_password
         target: db_runtime_password.txt

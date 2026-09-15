@@ -34,14 +34,29 @@ if [ ! -f "$SECRETS_DIR/db_admin_user.txt" ]; then
     echo "Created db_admin_user.txt"
 fi
 
-if [ ! -f "$SECRETS_DIR/minio_root_user.txt" ]; then
-    echo "minio_admin" > "$SECRETS_DIR/minio_root_user.txt"
-    echo "Created minio_root_user.txt"
-fi
+cp "$SECRETS_DIR/minio_root_user.txt" "$SECRETS_DIR/minio_access_key"
+cp "$SECRETS_DIR/minio_root_password.txt" "$SECRETS_DIR/minio_secret_key.txt"
 
-if [ ! -f "$SECRETS_DIR/minio_access_key" ]; then
-    echo "minio_key" > "$SECRETS_DIR/minio_access_key"
-    echo "Created minio_access_key"
-fi
+# Helper function: ensure .env has valid non-placeholder 32-byte production secrets
+ensure_env_secret() {
+    local key="$1"
+    local length="${2:-32}"
+    local env_file="$SCRIPT_DIR/.env"
+    touch "$env_file"
+    if ! grep -q "^${key}=" "$env_file" || grep -E "^${key}=(change-me|development|generate-.*-here|$)" "$env_file" >/dev/null 2>&1; then
+        local secret
+        secret=$(openssl rand -hex "$length")
+        if grep -q "^${key}=" "$env_file"; then
+            sed -i "s|^${key}=.*|${key}=${secret}|" "$env_file"
+        else
+            echo "${key}=${secret}" >> "$env_file"
+        fi
+        echo "Configured $key in .env"
+    fi
+}
 
-echo "All secrets generated successfully!"
+ensure_env_secret "JWT_SECRET" 32
+ensure_env_secret "COLLABORATION_SERVICE_SECRET" 32
+ensure_env_secret "CURSOR_SECRET" 32
+
+echo "All secrets and .env keys generated successfully!"

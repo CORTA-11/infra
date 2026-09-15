@@ -18,12 +18,40 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     exit 1
 fi
 
+# Ensure production secrets and .env exist
+ensure_env_secret() {
+    local key="$1"
+    local length="${2:-32}"
+    local env_file="$SCRIPT_DIR/.env"
+    touch "$env_file"
+    if ! grep -q "^${key}=" "$env_file" || grep -E "^${key}=(change-me|development|generate-.*-here|$)" "$env_file" >/dev/null 2>&1; then
+        local secret
+        secret=$(openssl rand -hex "$length")
+        if grep -q "^${key}=" "$env_file"; then
+            sed -i "s|^${key}=.*|${key}=${secret}|" "$env_file"
+        else
+            echo "${key}=${secret}" >> "$env_file"
+        fi
+        echo "--> Configured strong production secret for $key in .env"
+    fi
+}
+
+ensure_env_secret "JWT_SECRET" 32
+ensure_env_secret "COLLABORATION_SERVICE_SECRET" 32
+ensure_env_secret "CURSOR_SECRET" 32
+
+# Generate missing secrets if needed
+if [ -f "./generate-secrets.sh" ]; then
+    ./generate-secrets.sh >/dev/null 2>&1 || true
+fi
+
 # 1. Pull latest image(s) from ghcr.io
 echo "--> Pulling latest image(s)..."
 if [ -n "$SERVICE" ]; then
     docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
     echo "--> Restarting $SERVICE (without touching dependencies)..."
     docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
+else
     docker compose -f "$COMPOSE_FILE" pull
 
     echo "--> Ensuring database and storage services are up..."
@@ -62,7 +90,7 @@ docker image prune -f
 
 # 3. Status check
 echo "--> Checking container status..."
-sleep 2
+sleep 3
 docker compose -f "$COMPOSE_FILE" ps
 
 RESTARTING=$(docker compose -f "$COMPOSE_FILE" ps --filter "status=restarting" -q 2>/dev/null || true)
