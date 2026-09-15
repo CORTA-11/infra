@@ -81,7 +81,14 @@ else
     fi
 
     echo "--> Updating and starting all application services..."
-    docker compose -f "$COMPOSE_FILE" up -d
+    if ! docker compose -f "$COMPOSE_FILE" up -d; then
+        echo "--------------------------------------------------"
+        echo " [Error Diagnostics] Deployment failed! Container logs:"
+        echo ">>> infra-api-1 logs:"
+        docker logs infra-api-1 --tail 30 2>&1 || true
+        echo "--------------------------------------------------"
+        exit 1
+    fi
 fi
 
 # 2. Prune dangling images to save server storage
