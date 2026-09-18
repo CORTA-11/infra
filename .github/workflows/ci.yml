@@ -16,11 +16,33 @@ jobs:
   validate:
     name: Validate Compose and Envoy
     runs-on: ubuntu-latest
+    env:
+      GRAFANA_ADMIN_PASSWORD: ci-validation-only
+      JWT_SECRET: ci-validation-only
+      COLLABORATION_SERVICE_SECRET: ci-validation-only
+      CURSOR_SECRET: ci-validation-only
+      MINIO_SECRET_KEY: ci-validation-only
     steps:
       - uses: actions/checkout@v6
       - name: Validate Compose configuration
-        run: docker compose config --quiet
+        run: |
+          docker compose config --quiet
+          docker compose -f docker-compose.prod.yaml config --quiet
+          bash -n deploy.sh
       - name: Create the external application network
         run: docker network create synodus-network
       - name: Validate Envoy configuration
-        run: docker compose run --rm --no-deps envoy --mode validate -c /etc/envoy/envoy.yaml
+        run: |
+          mkdir -p /tmp/infra-validation-certs
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /tmp/infra-validation-certs/privkey.pem \
+            -out /tmp/infra-validation-certs/fullchain.pem \
+            -days 1 -subj /CN=localhost
+          chmod 644 /tmp/infra-validation-certs/*.pem
+          docker compose run --rm --no-deps \
+            -v /tmp/infra-validation-certs:/etc/envoy/certs:ro \
+            envoy --mode validate -c /etc/envoy/envoy.yaml
+      - name: Validate Prometheus configuration
+        run: |
+          docker compose run --rm --no-deps --entrypoint /bin/promtool \
+            prometheus check config /etc/prometheus/prometheus.yml

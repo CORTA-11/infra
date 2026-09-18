@@ -24,7 +24,8 @@ ensure_env_secret() {
     local length="${2:-32}"
     local env_file="$SCRIPT_DIR/.env"
     touch "$env_file"
-    if ! grep -q "^${key}=" "$env_file" || grep -E "^${key}=(change-me|development|generate-.*-here|$)" "$env_file" >/dev/null 2>&1; then
+    chmod 600 "$env_file"
+    if ! grep -q "^${key}=" "$env_file" || grep -E "^${key}=(change-me|change-after-login|development|generate-.*-here|$)" "$env_file" >/dev/null 2>&1 || { [ "$key" = "GRAFANA_ADMIN_PASSWORD" ] && grep -Eq '^GRAFANA_ADMIN_PASSWORD=(admin|"admin"|'"'admin'"')$' "$env_file"; }; then
         local secret
         secret=$(openssl rand -hex "$length")
         if grep -q "^${key}=" "$env_file"; then
@@ -39,6 +40,7 @@ ensure_env_secret() {
 ensure_env_secret "JWT_SECRET" 32
 ensure_env_secret "COLLABORATION_SERVICE_SECRET" 32
 ensure_env_secret "CURSOR_SECRET" 32
+ensure_env_secret "GRAFANA_ADMIN_PASSWORD" 32
 
 # Ensure geeth.cf allowed origins in .env
 env_file="$SCRIPT_DIR/.env"
@@ -96,6 +98,8 @@ if [ -n "$SERVICE" ]; then
     docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
     echo "--> Restarting $SERVICE (without touching dependencies)..."
     docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
+    echo "--> Ensuring monitoring and its Envoy connection are up..."
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps envoy node-exporter prometheus grafana
 else
     docker compose -f "$COMPOSE_FILE" pull
 

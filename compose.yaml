@@ -1,4 +1,19 @@
 services:
+  node-exporter:
+    extends:
+      file: docker-compose.yaml
+      service: node-exporter
+
+  prometheus:
+    extends:
+      file: docker-compose.yaml
+      service: prometheus
+
+  grafana:
+    extends:
+      file: docker-compose.yaml
+      service: grafana
+
   
   envoy:
     image: envoyproxy/envoy:distroless-dev-9c085ba4a27fddea1811a8ecc98fc094dbdd455c
@@ -7,11 +22,18 @@ services:
     volumes:
       - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
     ports:
-      - "9901:9901"
+      - "127.0.0.1:9901:9901"
       - "10000:10000"
     networks:
       - synodus-network
+      - monitoring
 
 networks:
+  monitoring:
+    driver: bridge
   synodus-network:
     external: true
+
+volumes:
+  prometheus_data:
+  grafana_data:

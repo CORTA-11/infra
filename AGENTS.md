@@ -23,6 +23,10 @@ These instructions apply to the entire `infra` repository.
   catch-all. Preserve WebSocket upgrade configuration when editing listeners.
 - Coordinate upstream names, ports, path prefixes, and public origins with
   `core-api`, `socket-server`, and `web-frontend`.
+- Both local and production Compose files extend the shared monitoring services
+  in `docker-compose.yaml`; monitoring starts with normal deployments.
+  `deploy.sh` initializes the Grafana password in `.env` and ensures monitoring
+  also runs after a deployment targeting one service.
 
 ## Change guidelines
 

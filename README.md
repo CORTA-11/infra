@@ -80,9 +80,82 @@ The first release runs one `collaboration-server` replica. Envoy does not yet
 provide sticky or distributed Document Room routing; Redis-backed horizontal
 room scaling is out of scope.
 
+## Prometheus and Grafana
+
+Monitoring starts automatically with the local and production stacks. Both
+Compose files extend the shared services in `docker-compose.yaml`.
+`./deploy.sh` (including deployments targeting one service) starts monitoring
+and generates `GRAFANA_ADMIN_PASSWORD` in `.env` if it is missing, empty, or a
+placeholder (including `admin`). The environment file is restricted to its owner.
+
+For direct Compose commands, set `GRAFANA_ADMIN_PASSWORD` to a strong password in your ignored `.env` file
+(see `.env.example`). The initial username is `admin`, configurable with
+`GRAFANA_ADMIN_USER`. The password environment variable only initializes a new
+Grafana database; change an existing account password through Grafana.
+
+After preparing the local stack as above, start monitoring with:
+
+```bash
+docker compose up -d
+```
+
+For production, with the usual application secrets and TLS certificates ready:
+
+```bash
+docker compose -f docker-compose.prod.yaml up -d
+```
+
+Use `-f docker-compose.prod.yaml` for production `logs`, `restart`, and `down`
+commands. Monitoring uses named volumes for metrics and Grafana state. Metrics
+retention is 15 days or 5 GB of stored blocks, whichever limit is reached first;
+allow additional disk space for the write-ahead log and active data. `down`
+preserves the volumes; `down -v` deletes them.
+
+- Grafana: <http://localhost:3001>, with a provisioned Prometheus data source
+  and the **Infra / Infra Overview** dashboard. Port 3001 avoids the frontend's
+  development port 3000. Edit the dashboard JSON in `grafana/dashboards` to
+  persist dashboard changes.
+- Prometheus: <http://localhost:9090>, scraping itself, Node Exporter, and
+  Envoy's private `envoy:9901/stats/prometheus` endpoint every 15 seconds.
+- Node Exporter reads Linux host CPU, memory, and filesystem metrics using
+  read-only host mounts. On Docker Desktop, these describe the Linux VM.
+  Its port is available only inside the monitoring network.
+
+The published monitoring ports and Envoy admin port bind to localhost. For a
+remote host, use an SSH tunnel:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 -L 9090:127.0.0.1:9090 user@your-server
+```
+
+Verify after startup (allow at least 30 seconds for scrapes, and several minutes
+for rate panels):
+
+```bash
+curl -fsS http://localhost:9090/-/ready
+curl -fsS http://localhost:3001/api/health
+curl -fsS http://localhost:9090/api/v1/targets
+curl -fsS http://localhost:9901/ready
+```
+
+All three jobs should report `health: up` in the targets response. Application
+metrics endpoints are not assumed; Envoy panels show proxy traffic to the
+upstreams. Envoy must be running successfully for its scrape target to be up.
+The current `envoy.yaml` requires certificates at `/etc/envoy/certs`; production
+mounts `./certs`, while local TLS mounting and HTTPS port publishing must be
+configured separately when using this TLS configuration.
+
+Configuration follows the official [Grafana provisioning documentation](https://grafana.com/docs/grafana/latest/administration/provisioning/)
+and [Envoy metrics endpoint documentation](https://www.envoyproxy.io/docs/envoy/latest/operations/admin).
+
 ## Configuration validation
 
 ```bash
 docker compose config
 docker compose run --rm envoy --mode validate -c /etc/envoy/envoy.yaml
+
+# With GRAFANA_ADMIN_PASSWORD set in .env:
+docker compose -f docker-compose.prod.yaml config --quiet
+docker compose run --rm --no-deps \
+  --entrypoint /bin/promtool prometheus check config /etc/prometheus/prometheus.yml
 ```
