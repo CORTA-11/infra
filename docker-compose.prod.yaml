@@ -1,4 +1,19 @@
 services:
+  node-exporter:
+    extends:
+      file: docker-compose.yaml
+      service: node-exporter
+
+  prometheus:
+    extends:
+      file: docker-compose.yaml
+      service: prometheus
+
+  grafana:
+    extends:
+      file: docker-compose.yaml
+      service: grafana
+
 
   envoy:
     image: envoyproxy/envoy:distroless-dev-9c085ba4a27fddea1811a8ecc98fc094dbdd455c
@@ -18,6 +33,7 @@ services:
       - collaboration-server
     networks:
       - synodus-network
+      - monitoring
 
   web:
     image: ghcr.io/corta-11/web-frontend:latest
@@ -199,11 +215,15 @@ services:
       - synodus-network
 
 networks:
+  monitoring:
+    driver: bridge
   synodus-network:
     name: synodus-network
     driver: bridge
 
 volumes:
+  prometheus_data:
+  grafana_data:
   postgres_data:
   redis_data:
   minio_data:
