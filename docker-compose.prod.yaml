@@ -72,6 +72,7 @@ services:
       CURSOR_SECRET: ${CURSOR_SECRET}
       COLLABORATION_SERVICE_SECRET: ${COLLABORATION_SERVICE_SECRET}
       COLLABORATION_INTERNAL_URL: ${COLLABORATION_INTERNAL_URL:-http://collaboration-server:8082}
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase_service_account.json
     secrets:
       - source: db_runtime_password
         target: db_runtime_password.txt
@@ -85,6 +86,8 @@ services:
         target: redis_invitation_binding_secret.txt
       - source: csrf_secret
         target: csrf_secret.txt
+      - source: firebase_service_account
+        target: firebase_service_account.json
     depends_on:
       postgres:
         condition: service_healthy
@@ -251,3 +254,5 @@ secrets:
     file: ./secrets/redis_invitation_binding_secret.txt
   csrf_secret:
     file: ./secrets/csrf_secret.txt
+  firebase_service_account:
+    file: ./secrets/firebase_service_account.json
