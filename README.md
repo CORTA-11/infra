@@ -141,9 +141,9 @@ curl -fsS http://localhost:9901/ready
 All three jobs should report `health: up` in the targets response. Application
 metrics endpoints are not assumed; Envoy panels show proxy traffic to the
 upstreams. Envoy must be running successfully for its scrape target to be up.
-The current `envoy.yaml` requires certificates at `/etc/envoy/certs`; production
-mounts `./certs`, while local TLS mounting and HTTPS port publishing must be
-configured separately when using this TLS configuration.
+Local Compose uses `envoy.local.yaml` for HTTP on port 10000 without certificates.
+Production uses `envoy.yaml` for HTTP-to-HTTPS redirects and TLS, mounting
+`./certs` at `/etc/envoy/certs`. Keep application routes aligned in both files.
 
 Configuration follows the official [Grafana provisioning documentation](https://grafana.com/docs/grafana/latest/administration/provisioning/)
 and [Envoy metrics endpoint documentation](https://www.envoyproxy.io/docs/envoy/latest/operations/admin).
