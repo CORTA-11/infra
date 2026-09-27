@@ -29,6 +29,11 @@ These instructions apply to the entire `infra` repository.
   in `docker-compose.yaml`; monitoring starts with normal deployments.
   `deploy.sh` initializes the Grafana password in `.env` and ensures monitoring
   also runs after a deployment targeting one service.
+- Local `compose.yaml` includes in-memory Jaeger for the core API tracing pilot
+  on the external `synodus-network`. Production Compose runs Jaeger with Badger
+  storage in a named volume. Both bind the UI to localhost; the production OTLP
+  receiver is reachable only on the application network. Targeted deployments
+  also ensure Jaeger is running.
 - Production chat summarisation runs through the private `ai-service` container.
   `deploy.sh` generates the `AI_SERVICE_TOKEN` shared with `core-api`.
 
