@@ -43,18 +43,33 @@ ensure_env_secret "CURSOR_SECRET" 32
 ensure_env_secret "AI_SERVICE_TOKEN" 32
 ensure_env_secret "GRAFANA_ADMIN_PASSWORD" 32
 
-# Ensure geeth.cf allowed origins in .env
+# Keep all supported domains in existing deployments.
 env_file="$SCRIPT_DIR/.env"
 if grep -q "app.yourdomain.com" "$env_file" 2>/dev/null; then
-    sed -i "s|https://app.yourdomain.com|https://geeth.cf,https://www.geeth.cf|g" "$env_file"
-    echo "--> Updated origins for geeth.cf in .env"
+    sed -i "s|https://app.yourdomain.com|https://geeth.cf,https://www.geeth.cf,https://synodus.teshank.org|g" "$env_file"
+    echo "--> Updated allowed origins in .env"
 fi
-if ! grep -q "^HTTP_ALLOWED_ORIGINS=" "$env_file" 2>/dev/null; then
-    echo "HTTP_ALLOWED_ORIGINS=https://geeth.cf,https://www.geeth.cf" >> "$env_file"
-fi
-if ! grep -q "^SOCKET_ALLOWED_ORIGINS=" "$env_file" 2>/dev/null; then
-    echo "SOCKET_ALLOWED_ORIGINS=https://geeth.cf,https://www.geeth.cf" >> "$env_file"
-fi
+production_origins="https://geeth.cf,https://www.geeth.cf,https://synodus.teshank.org"
+ensure_allowed_origin() {
+    local key="$1"
+    local current
+    current="$(grep -m1 "^${key}=" "$env_file" || true)"
+    if [ -z "$current" ]; then
+        printf '%s=%s\n' "$key" "$production_origins" >> "$env_file"
+    elif [ -z "${current#*=}" ]; then
+        sed -i "s|^${key}=$|${key}=${production_origins}|" "$env_file"
+    else
+        local origin
+        for origin in https://geeth.cf https://www.geeth.cf https://synodus.teshank.org; do
+            if [[ ",${current#*=}," != *",${origin},"* ]]; then
+                sed -i "/^${key}=/s|$|,${origin}|" "$env_file"
+                current="${current},${origin}"
+            fi
+        done
+    fi
+}
+ensure_allowed_origin "HTTP_ALLOWED_ORIGINS"
+ensure_allowed_origin "SOCKET_ALLOWED_ORIGINS"
 
 # Ensure self-signed TLS certificates exist for Envoy port 443
 if [ ! -f "$SCRIPT_DIR/certs/privkey.pem" ] || [ ! -f "$SCRIPT_DIR/certs/fullchain.pem" ]; then
@@ -64,7 +79,8 @@ if [ ! -f "$SCRIPT_DIR/certs/privkey.pem" ] || [ ! -f "$SCRIPT_DIR/certs/fullcha
         -keyout "$SCRIPT_DIR/certs/privkey.pem" \
         -out "$SCRIPT_DIR/certs/fullchain.pem" \
         -days 3650 \
-        -subj "/CN=geeth.cf"
+        -subj "/CN=synodus.teshank.org" \
+        -addext "subjectAltName=DNS:synodus.teshank.org,DNS:geeth.cf,DNS:www.geeth.cf"
     chmod 644 "$SCRIPT_DIR/certs"/*
     chmod 755 "$SCRIPT_DIR/certs"
 fi

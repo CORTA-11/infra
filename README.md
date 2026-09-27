@@ -112,6 +112,11 @@ run `./deploy.sh ai-service` and `./deploy.sh api` after a new image release.
 The AI container is reachable only on the application network at
 `http://ai-service:8080`.
 
+Production API and WebSocket origin lists include `https://synodus.teshank.org`
+alongside `https://geeth.cf` and `https://www.geeth.cf`. `deploy.sh` adds the
+new origin to existing `.env` files. Envoy serves the certificate files in
+`certs/`, which must cover the active hostname.
+
 Use `-f docker-compose.prod.yaml` for production `logs`, `restart`, and `down`
 commands. Monitoring uses named volumes for metrics and Grafana state. Metrics
 retention is 15 days or 5 GB of stored blocks, whichever limit is reached first;
