@@ -30,6 +30,12 @@ static_resources:
                 route:
                   cluster: socket
               - match:
+                  safe_regex:
+                    regex: "^/api/v1/orgs/[^/]+/teams/[^/]+/ai/process$"
+                route:
+                  cluster: api
+                  timeout: 90s
+              - match:
                   prefix: "/api/"
                 route:
                   cluster: api
