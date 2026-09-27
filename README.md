@@ -107,9 +107,10 @@ For production, with the usual application secrets and TLS certificates ready:
 
 Production chat summarisation uses the `ai-service` image published to GHCR.
 `deploy.sh` generates a shared `AI_SERVICE_TOKEN` and starts `ai-service`
-before `api`. The ai-service publishing workflow redeploys both services on
-subsequent releases. The AI container is reachable only on the application
-network at `http://ai-service:8080`.
+before `api`. The ai-service publishing workflow makes the image available;
+run `./deploy.sh ai-service` and `./deploy.sh api` after a new image release.
+The AI container is reachable only on the application network at
+`http://ai-service:8080`.
 
 Use `-f docker-compose.prod.yaml` for production `logs`, `restart`, and `down`
 commands. Monitoring uses named volumes for metrics and Grafana state. Metrics
