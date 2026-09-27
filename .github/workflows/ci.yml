@@ -22,6 +22,7 @@ jobs:
       COLLABORATION_SERVICE_SECRET: ci-validation-only
       CURSOR_SECRET: ci-validation-only
       MINIO_SECRET_KEY: ci-validation-only
+      AI_SERVICE_TOKEN: ci-validation-only
     steps:
       - uses: actions/checkout@v6
       - name: Validate Compose configuration

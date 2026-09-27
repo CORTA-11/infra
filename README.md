@@ -20,9 +20,9 @@ docker compose up -d
 
 ## Reproducible local collaboration stack
 
-The sibling repositories are expected at `../core-api`, `../socket-server`, and
-`../web-frontend`. Create the shared network once, initialize core-api as
-described in its README, then start the named services:
+The sibling repositories are expected at `../core-api`, `../ai-service`,
+`../socket-server`, and `../web-frontend`. Create the shared network once,
+initialize core-api as described in its README, then start the named services:
 
 ```bash
 docker network inspect synodus-network >/dev/null 2>&1 || docker network create synodus-network
@@ -102,8 +102,14 @@ docker compose up -d
 For production, with the usual application secrets and TLS certificates ready:
 
 ```bash
-docker compose -f docker-compose.prod.yaml up -d
+./deploy.sh
 ```
+
+Production chat summarisation uses the `ai-service` image published to GHCR.
+`deploy.sh` generates a shared `AI_SERVICE_TOKEN` and starts `ai-service`
+before `api`. The ai-service publishing workflow redeploys both services on
+subsequent releases. The AI container is reachable only on the application
+network at `http://ai-service:8080`.
 
 Use `-f docker-compose.prod.yaml` for production `logs`, `restart`, and `down`
 commands. Monitoring uses named volumes for metrics and Grafana state. Metrics

@@ -29,6 +29,8 @@ These instructions apply to the entire `infra` repository.
   in `docker-compose.yaml`; monitoring starts with normal deployments.
   `deploy.sh` initializes the Grafana password in `.env` and ensures monitoring
   also runs after a deployment targeting one service.
+- Production chat summarisation runs through the private `ai-service` container.
+  `deploy.sh` generates the `AI_SERVICE_TOKEN` shared with `core-api`.
 
 ## Change guidelines
 

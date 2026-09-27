@@ -40,6 +40,7 @@ ensure_env_secret() {
 ensure_env_secret "JWT_SECRET" 32
 ensure_env_secret "COLLABORATION_SERVICE_SECRET" 32
 ensure_env_secret "CURSOR_SECRET" 32
+ensure_env_secret "AI_SERVICE_TOKEN" 32
 ensure_env_secret "GRAFANA_ADMIN_PASSWORD" 32
 
 # Ensure geeth.cf allowed origins in .env
@@ -95,6 +96,11 @@ fi
 # 1. Pull latest image(s) from ghcr.io
 echo "--> Pulling latest image(s)..."
 if [ -n "$SERVICE" ]; then
+    if [ "$SERVICE" = "api" ]; then
+        echo "--> Ensuring ai-service is updated and healthy before restarting the API..."
+        docker compose -f "$COMPOSE_FILE" pull ai-service
+        docker compose -f "$COMPOSE_FILE" up -d --wait --no-deps ai-service
+    fi
     docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
     echo "--> Restarting $SERVICE (without touching dependencies)..."
     docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
