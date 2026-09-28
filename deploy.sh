@@ -49,7 +49,7 @@ if grep -q "app.yourdomain.com" "$env_file" 2>/dev/null; then
     sed -i "s|https://app.yourdomain.com|https://geeth.cf,https://www.geeth.cf,https://synodus.teshank.org|g" "$env_file"
     echo "--> Updated allowed origins in .env"
 fi
-production_origins="https://geeth.cf,https://www.geeth.cf,https://synodus.teshank.org"
+production_origins="https://geeth.cf,https://www.geeth.cf,https://synodus.teshank.org,https://synodus.cse23.org"
 ensure_allowed_origin() {
     local key="$1"
     local current
@@ -60,7 +60,7 @@ ensure_allowed_origin() {
         sed -i "s|^${key}=$|${key}=${production_origins}|" "$env_file"
     else
         local origin
-        for origin in https://geeth.cf https://www.geeth.cf https://synodus.teshank.org; do
+        for origin in https://geeth.cf https://www.geeth.cf https://synodus.teshank.org https://synodus.cse23.org; do
             if [[ ",${current#*=}," != *",${origin},"* ]]; then
                 sed -i "/^${key}=/s|$|,${origin}|" "$env_file"
                 current="${current},${origin}"
@@ -79,8 +79,8 @@ if [ ! -f "$SCRIPT_DIR/certs/privkey.pem" ] || [ ! -f "$SCRIPT_DIR/certs/fullcha
         -keyout "$SCRIPT_DIR/certs/privkey.pem" \
         -out "$SCRIPT_DIR/certs/fullchain.pem" \
         -days 3650 \
-        -subj "/CN=synodus.teshank.org" \
-        -addext "subjectAltName=DNS:synodus.teshank.org,DNS:geeth.cf,DNS:www.geeth.cf"
+        -subj "/CN=synodus.cse23.org" \
+        -addext "subjectAltName=DNS:synodus.cse23.org,DNS:synodus.teshank.org,DNS:geeth.cf,DNS:www.geeth.cf"
     chmod 644 "$SCRIPT_DIR/certs"/*
     chmod 755 "$SCRIPT_DIR/certs"
 fi
