@@ -73,6 +73,11 @@ static_resources:
                   cluster: api
                   timeout: 90s
               - match:
+                  path: "/api/v1/orgs/events"
+                route:
+                  cluster: api
+                  timeout: 0s
+              - match:
                   prefix: "/api/"
                 route:
                   cluster: api
