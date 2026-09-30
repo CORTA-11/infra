@@ -2,6 +2,11 @@
 
 Envoy exposes the local Docker stack at `http://localhost:10000`.
 
+Local Compose also runs Jaeger for the core API tracing pilot. Its UI is at
+<http://localhost:16686> and is bound to localhost. The collector accepts
+OTLP/HTTP from `core-api` at `http://jaeger:4318/v1/traces`; trace storage is
+temporary and is cleared when Jaeger restarts.
+
 Routes:
 
 - `/api/` forwards to `core-api` on port 8080.
@@ -111,6 +116,29 @@ before `api`. The ai-service publishing workflow makes the image available;
 run `./deploy.sh ai-service` and `./deploy.sh api` after a new image release.
 The AI container is reachable only on the application network at
 `http://ai-service:8080`.
+
+## Production API tracing
+
+Production Compose runs Jaeger on the private application network and sends
+selected `core-api` routes to `http://jaeger:4318/v1/traces`. The API samples
+10% of these traces by default. Set `OTEL_TRACES_SAMPLE_RATIO` in the infra
+`.env` file to a value from `0` to `1` to change this, or set
+`OTEL_TRACES_ENABLED=false` to stop creating traces. `./deploy.sh` starts Jaeger
+on full and targeted deployments. Publish an API image containing the tracing
+code before expecting traces from production requests.
+
+The Jaeger UI listens on the production host at <http://localhost:16686> and is
+not publicly exposed. From another machine, connect with
+`ssh -L 16686:127.0.0.1:16686 user@your-server`, then open
+<http://localhost:16686> and select the `core-api` service. Send a sign-in or
+dashboard request and search for its route name; the sampled trace may require
+several attempts. The API remains available if Jaeger is down, though traces
+cannot be delivered then.
+
+Production Jaeger stores traces in the `jaeger_data` volume with a 48-hour
+retention period. This is a single-node pilot store; include the volume in any
+trace-data backup policy and monitor its disk use. `docker compose -f
+docker-compose.prod.yaml down` preserves the volume, while `down -v` deletes it.
 
 Production API and WebSocket origin lists include `https://synodus.teshank.org`
 alongside `https://geeth.cf` and `https://www.geeth.cf`. `deploy.sh` adds the

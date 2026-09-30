@@ -121,7 +121,7 @@ if [ -n "$SERVICE" ]; then
     echo "--> Restarting $SERVICE (without touching dependencies)..."
     docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
     echo "--> Ensuring monitoring and its Envoy connection are up..."
-    docker compose -f "$COMPOSE_FILE" up -d --no-deps envoy node-exporter prometheus grafana
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps envoy node-exporter prometheus grafana jaeger
 else
     docker compose -f "$COMPOSE_FILE" pull
 

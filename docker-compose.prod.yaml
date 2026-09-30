@@ -1,4 +1,16 @@
 services:
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.21.0@sha256:3d0ac795ff98aa04d1be04311d2dac6c25b4bfc8322dc02e53bc5b170c5018c3
+    restart: unless-stopped
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    volumes:
+      - ./jaeger.prod.yaml:/etc/jaeger/config.yaml:ro
+      - jaeger_data:/tmp
+    ports:
+      - "127.0.0.1:16686:16686"
+    networks:
+      - synodus-network
+
   node-exporter:
     extends:
       file: docker-compose.yaml
@@ -75,6 +87,9 @@ services:
       COLLABORATION_INTERNAL_URL: ${COLLABORATION_INTERNAL_URL:-http://collaboration-server:8082}
       AI_SERVICE_URL: http://ai-service:8080
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN in .env}
+      OTEL_TRACES_ENABLED: ${OTEL_TRACES_ENABLED:-true}
+      OTEL_TRACES_SAMPLE_RATIO: ${OTEL_TRACES_SAMPLE_RATIO:-0.1}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
       FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase_service_account.json
     secrets:
       - source: db_runtime_password
@@ -244,6 +259,7 @@ networks:
     driver: bridge
 
 volumes:
+  jaeger_data:
   prometheus_data:
   grafana_data:
   postgres_data:
