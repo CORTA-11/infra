@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+MINIO_ROOT_USER="$(cat "$MINIO_ROOT_USER_FILE")"
+MINIO_ROOT_PASSWORD="$(cat "$MINIO_ROOT_PASSWORD_FILE")"
+export MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+exec minio "$@"

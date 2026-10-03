@@ -1,0 +1,5 @@
+*
+!Dockerfile.local-setup
+!Dockerfile.minio
+!bootstrap-local.sh
+!minio-entrypoint.sh

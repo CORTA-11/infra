@@ -29,8 +29,11 @@ jobs:
         run: |
           docker compose config --quiet
           docker compose -f docker-compose.prod.yaml config --quiet
+          docker compose -f compose.local.yaml --profile setup config --quiet
           bash -n deploy.sh
           bash -n setup-local.sh
+          sh -n bootstrap-local.sh
+          sh -n minio-entrypoint.sh
       - name: Check local installer credential generation and reruns
         run: python3 -m unittest discover -s tests
       - name: Create the external application network

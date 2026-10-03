@@ -1,0 +1,18 @@
+# MinIO's official community images have been removed. Build its pinned source
+# in CI and publish our runtime image so clients still only pull images.
+FROM golang:1.26.6-alpine AS build
+RUN CGO_ENABLED=0 go install -p 2 -ldflags="-s -w" github.com/minio/minio@7aac2a2c5b7c882e68c1ce017d8256be2feea27f
+RUN wget -qO /minio-LICENSE https://raw.githubusercontent.com/minio/minio/7aac2a2c5b7c882e68c1ce017d8256be2feea27f/LICENSE
+
+FROM alpine:3.23
+RUN apk add --no-cache ca-certificates curl tzdata \
+    && addgroup -S -g 10001 minio \
+    && adduser -S -D -H -u 10001 -G minio minio \
+    && mkdir /data && chown minio:minio /data
+COPY --from=build /go/bin/minio /usr/local/bin/minio
+COPY --from=build /minio-LICENSE /usr/share/licenses/minio/LICENSE
+COPY minio-entrypoint.sh /usr/local/bin/minio-entrypoint.sh
+USER 10001:10001
+EXPOSE 9000 9001
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/minio-entrypoint.sh"]
+CMD ["server", "--console-address", ":9001", "/data"]

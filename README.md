@@ -4,71 +4,77 @@ Envoy exposes the local Docker stack at `http://localhost:10000`.
 
 ## One-command local setup
 
-Install Git, curl, OpenSSL, and Docker with Compose v2+ (including
-`--wait-timeout` support), then start Docker. On Linux or macOS, run:
+Install curl, OpenSSL, and Docker with Compose v2+ (including
+`--wait-timeout` support), then start Docker. Run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CORTA-11/infra/main/setup-local.sh | bash
 ```
 
-The command clones all five repositories into `./synodus`, builds the services, applies
-public database migrations and role passwords, creates the MinIO bucket, and
-starts the API, tenant provisioner, AI service, chat and Document collaboration,
-frontend, Envoy, Prometheus, and Grafana. Go, Node.js, and Python run inside
-Docker; they are not required on your machine. Allow time and disk space for
-the initial image builds. Repository access must be available to Git; private
-repositories require your existing Git credentials.
+The installer downloads seven configuration files into `./synodus`, pulls the
+published images, generates credentials, applies database migrations, creates
+the storage bucket, and starts the application and monitoring. It never clones
+repositories or builds images. Git, Go, Node.js, and Python are not required.
+Application images are pinned to published commit tags. A published setup image
+contains the matching core-api migration and bootstrap binaries; a published
+MinIO image builds the archived upstream source in CI because the original
+community registry images are no longer available.
 
-For existing sibling checkouts, use the installer directly:
-
-```bash
-bash infra/setup-local.sh
-```
-
-To choose the destination for a downloaded installer:
+Choose a different installation directory with:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CORTA-11/infra/main/setup-local.sh | bash -s -- --dir "$HOME/synodus"
 ```
 
-Rerunning preserves existing checkouts, environment values, secret files, and
-database volumes, and reapplies migrations. It does not pull changes into
-existing repositories. `--ref TAG_OR_BRANCH` selects the same ref for all new
-clones; that ref must exist in every repository. The installer is intended for
-local development.
+Rerunning refreshes the downloaded configuration and pulls its pinned images;
+it preserves existing credentials and database volumes. `--ref TAG_OR_BRANCH`
+selects the infra configuration revision. Running a checked-out
+`bash setup-local.sh` uses the config files beside the script, which supports
+local development and verification before publishing.
 
-No application configuration or password entry is required. On a fresh install,
+No password entry or application configuration is required. On a fresh install,
 OpenSSL generates unique random passwords for the database administrator and
-three database roles, MinIO, and Grafana, plus the JWT, collaboration, cursor,
-AI service, rate-limit, invitation-binding, and CSRF secrets. The API and MinIO
-receive matching storage credentials; the API and realtime/AI services share
-their respective service secrets automatically. Existing credentials are retained.
+three database roles, MinIO, and Grafana, plus JWT, collaboration, cursor,
+AI service, rate-limit, invitation-binding, and CSRF secrets. Storage and service
+credentials are automatically shared with the containers that need them.
 
-Credentials are stored locally in:
+Credentials are stored in the installation directory:
 
-- `core-api/.env`: JWT, collaboration, cursor, and AI service secrets.
-- `core-api/.local_secrets/`: database and storage credentials, rate-limit,
-  invitation-binding, and CSRF secrets.
-- `infra/.env`: Grafana admin password.
+- `.env`: JWT, collaboration, cursor, AI service, and Grafana secrets.
+- `secrets/`: database and storage credentials, rate-limit, invitation-binding,
+  and CSRF secrets.
 
 Environment files and the secret directory are accessible only to the installing
 user. Individual secret files are readable by the container users when mounted.
-These paths are ignored by Git. You can change credentials later: recreate the
-affected containers after changing service secrets; rerunning setup applies
-changed database role passwords. Changing the PostgreSQL administrator password
-also requires changing it in PostgreSQL before rerunning setup. Change an existing
-Grafana account password through Grafana; its environment value only initializes
-the first account.
+You can change credentials later: recreate affected containers after changing
+service secrets; rerunning setup applies changed database role passwords.
+Changing the PostgreSQL administrator password also requires changing it in
+PostgreSQL before rerunning setup. Change an existing Grafana account password
+through Grafana; its environment value only initializes the first account.
 
 Open <http://localhost:10000> and register your first account; demo data is not
-seeded. Grafana is at <http://localhost:3001>; its generated admin password is
-stored in `infra/.env`. Setup checks application and monitoring readiness before
-reporting success. On failure, it leaves containers and data available for
-diagnosis; fix the reported error and rerun.
+seeded. Grafana is at <http://localhost:3001>, with username `admin` and its
+password in `.env`. Public and monitoring ports bind to localhost by default;
+on a VM, use `ssh -L 10000:localhost:10000 -L 3001:localhost:3001 user@server`.
+If you deliberately want the application reachable from other machines, add
+`SYNODUS_BIND_ADDRESS=0.0.0.0` to `.env` and recreate Envoy. Add the browser origin
+to `HTTP_ALLOWED_ORIGINS` and `SOCKET_ALLOWED_ORIGINS` when using a hostname
+other than localhost.
+
+The installer checks application and monitoring readiness before reporting
+success. On failure, it leaves containers and data available for diagnosis;
+fix the reported error and rerun. Manage the installed stack with:
+
+```bash
+cd synodus
+docker compose -f compose.local.yaml ps
+docker compose -f compose.local.yaml logs --tail 100
+docker compose -f compose.local.yaml down  # keeps database and storage volumes
+```
 
 The AI service starts automatically. Using an external AI provider still requires
-that provider's endpoint, model, and API token in the application's AI settings;
-the installer cannot generate credentials for a third-party account.
+that provider's endpoint, model, and API token in the application's AI settings.
+
 
 Routes:
 
@@ -88,7 +94,7 @@ docker compose up -d
 
 ## Reproducible local collaboration stack
 
-The installer above automates these steps. For manual startup, the sibling
+For source-based development, the sibling
 repositories are expected at `../core-api`, `../ai-service`,
 `../socket-server`, and `../web-frontend`. Create the shared network once,
 initialize core-api as described in its README, then start the named services:

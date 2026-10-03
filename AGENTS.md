@@ -34,7 +34,11 @@ These instructions apply to the entire `infra` repository.
 - For local installer changes, preserve existing credentials and keep generated
   MinIO/API credentials paired. Compose mounts secret files with host ownership:
   keep the host secret directory owner-only and mounted files readable by the
-  non-root service users. Keep cloned sources readable for non-root image users.
+  non-root service users.
+- `setup-local.sh` downloads configuration and pulls `compose.local.yaml` images;
+  source-based development still uses the sibling service repositories. Keep the
+  setup image's core-api source revision aligned with the pinned API image tag.
+  Bump published helper/MinIO image version tags when their build inputs change.
 
 ## Change guidelines
 

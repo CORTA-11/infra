@@ -1,0 +1,19 @@
+# Published by CI; clients never compile or download the source repositories.
+FROM golang:1.26.6-alpine AS build
+WORKDIR /src
+RUN wget -qO- https://codeload.github.com/CORTA-11/core-api/tar.gz/9c8e5c20e4b2cfffbe1b2e416fde8d6d6d711df3 \
+    | tar -xz --strip-components=1
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/dbroles ./cmd/dbroles \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/bootstrap ./cmd/bootstrap
+
+FROM alpine:3.23
+RUN apk add --no-cache ca-certificates \
+    && addgroup -S -g 10001 synodus \
+    && adduser -S -D -H -u 10001 -G synodus synodus
+WORKDIR /app
+COPY --from=build /out/ /usr/local/bin/
+COPY --from=build /src/db/migrations/public/ ./db/migrations/public/
+COPY bootstrap-local.sh /usr/local/bin/bootstrap-local.sh
+USER 10001:10001
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/bootstrap-local.sh"]

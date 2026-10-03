@@ -1,4 +1,0 @@
-FROM golang:1.26.6-alpine
-
-RUN apk add --no-cache bash make git
-WORKDIR /src
