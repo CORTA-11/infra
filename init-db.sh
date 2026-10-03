@@ -8,7 +8,7 @@ echo "=========================================="
 echo " Initializing Database and Roles"
 echo "=========================================="
 
-POSTGRES_CONTAINER=$(docker ps --format '{{.Names}}' | grep "postgres" | head -n 1 || true)
+POSTGRES_CONTAINER=$(docker compose -f docker-compose.prod.yaml ps -q postgres)
 if [ -z "$POSTGRES_CONTAINER" ]; then
     echo "Error: postgres container is not running. Run ./deploy.sh first to start postgres."
     exit 1
@@ -29,7 +29,7 @@ TABLE_EXISTS=$(docker exec -i "$POSTGRES_CONTAINER" psql -U "$ADMIN_USER" -d "$D
 
 if [ "$TABLE_EXISTS" != "1" ]; then
     echo "--> Applying database schema and roles to '$DB_NAME' as '$ADMIN_USER'..."
-    docker exec -i "$POSTGRES_CONTAINER" psql -U "$ADMIN_USER" -d "$DB_NAME" < init-schema.sql
+    docker exec -i "$POSTGRES_CONTAINER" psql --single-transaction -v ON_ERROR_STOP=1 -U "$ADMIN_USER" -d "$DB_NAME" < init-schema.sql
 else
     echo "--> Database schema already applied (public.orgs exists)."
 fi
@@ -37,12 +37,16 @@ fi
 echo "--> Setting passwords for application roles..."
 DB_RUNTIME_PASS="$(cat secrets/db_runtime_password.txt)"
 DB_PROVISIONER_PASS="$(cat secrets/db_provisioner_password.txt)"
-DB_ADMIN_PASS="$(cat secrets/db_admin_password.txt)"
+DB_MIGRATOR_PASS="$(cat secrets/db_migrator_password.txt)"
 
-docker exec -i "$POSTGRES_CONTAINER" psql -U "$ADMIN_USER" -d "$DB_NAME" -c \
-  "ALTER ROLE synodus_runtime PASSWORD '$DB_RUNTIME_PASS';
-   ALTER ROLE synodus_migrator PASSWORD '$DB_ADMIN_PASS';
-   ALTER ROLE synodus_provisioner PASSWORD '$DB_PROVISIONER_PASS';"
+docker exec -i "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$ADMIN_USER" -d "$DB_NAME" \
+    --set=runtime_password="$DB_RUNTIME_PASS" \
+    --set=migrator_password="$DB_MIGRATOR_PASS" \
+    --set=provisioner_password="$DB_PROVISIONER_PASS" <<'SQL'
+SELECT format('ALTER ROLE %I PASSWORD %L', 'synodus_runtime', :'runtime_password') \gexec
+SELECT format('ALTER ROLE %I PASSWORD %L', 'synodus_migrator', :'migrator_password') \gexec
+SELECT format('ALTER ROLE %I PASSWORD %L', 'synodus_provisioner', :'provisioner_password') \gexec
+SQL
 
 echo "=========================================="
 echo " Database initialization complete!"
