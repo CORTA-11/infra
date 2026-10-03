@@ -32,6 +32,9 @@ jobs:
           docker compose -f compose.local.yaml --profile setup config --quiet
           bash -n deploy.sh
           bash -n setup-local.sh
+          bash -n generate-secrets.sh
+          bash -n init-db.sh
+          bash -n init-minio.sh
           sh -n bootstrap-local.sh
           sh -n minio-entrypoint.sh
       - name: Check local installer credential generation and reruns

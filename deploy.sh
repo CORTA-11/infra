@@ -8,8 +8,8 @@ COMPOSE_FILE="docker-compose.prod.yaml"
 SERVICE="${1:-}"
 
 echo "=================================================="
-echo " [CORTA Deploy] Starting deployment: $(date)"
-echo " [CORTA Deploy] Target: ${SERVICE:-all services}"
+echo " [Synodus Deploy] Starting deployment: $(date)"
+echo " [Synodus Deploy] Target: ${SERVICE:-all services}"
 echo "=================================================="
 
 # Check if production compose file exists
@@ -87,7 +87,7 @@ fi
 
 # Generate missing secrets if needed
 if [ -f "./generate-secrets.sh" ]; then
-    ./generate-secrets.sh >/dev/null 2>&1 || true
+    ./generate-secrets.sh
 fi
 
 # Ensure MinIO keys are set in .env
@@ -119,27 +119,14 @@ if [ -n "$SERVICE" ]; then
     fi
     docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
     echo "--> Restarting $SERVICE (without touching dependencies)..."
-    docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps --wait --wait-timeout 180 "$SERVICE"
     echo "--> Ensuring monitoring and its Envoy connection are up..."
-    docker compose -f "$COMPOSE_FILE" up -d --no-deps envoy node-exporter prometheus grafana
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps --wait --wait-timeout 180 envoy node-exporter prometheus grafana
 else
     docker compose -f "$COMPOSE_FILE" pull
 
     echo "--> Ensuring database and storage services are up..."
-    docker compose -f "$COMPOSE_FILE" up -d postgres redis minio
-
-    # Wait for postgres to report healthy
-    echo "--> Waiting for PostgreSQL to be healthy..."
-    for i in $(seq 1 30); do
-        PG_CID=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null || true)
-        if [ -n "$PG_CID" ]; then
-            STATUS=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$PG_CID" 2>/dev/null || true)
-            if [ "$STATUS" = "healthy" ]; then
-                break
-            fi
-        fi
-        sleep 1
-    done
+    docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 120 postgres redis minio
 
     # Run database initialization if script is present
     if [ -f "./init-db.sh" ]; then
@@ -148,11 +135,11 @@ else
 
     # Ensure MinIO bucket exists
     if [ -f "./init-minio.sh" ]; then
-        ./init-minio.sh || true
+        ./init-minio.sh
     fi
 
     echo "--> Updating and starting all application services..."
-    if ! docker compose -f "$COMPOSE_FILE" up -d --force-recreate; then
+    if ! docker compose -f "$COMPOSE_FILE" up -d --force-recreate --wait --wait-timeout 180; then
         echo "--------------------------------------------------"
         echo " [Error Diagnostics] Deployment failed! Container logs:"
         echo ">>> infra-api-1 logs:"
@@ -183,8 +170,9 @@ if [ -n "$RESTARTING" ]; then
         docker logs "$cid" --tail 25 2>&1 || true
         echo "--------------------------------------------------"
     done
+    exit 1
 fi
 
 echo "=================================================="
-echo " [CORTA Deploy] Successfully updated!"
+echo " [Synodus Deploy] Successfully updated!"
 echo "=================================================="
