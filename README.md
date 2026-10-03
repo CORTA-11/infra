@@ -11,6 +11,11 @@ Install curl, OpenSSL, and Docker with Compose v2+ (including
 curl -fsSL https://raw.githubusercontent.com/CORTA-11/infra/main/setup-local.sh | bash
 ```
 
+Allow at least 8 GiB of free disk space for image downloads, extracted layers,
+and initial database/storage volumes. Running the full stack also needs roughly
+4 GiB of RAM. A VM can have unused virtual-disk space outside its root filesystem;
+check filesystem capacity with `df -h` before installing.
+
 The installer downloads seven configuration files into `./synodus`, pulls the
 published images, generates credentials, applies database migrations, creates
 the storage bucket, and starts the application and monitoring. It never clones
