@@ -4,3 +4,4 @@ certs/
 .env
 .env.local
 .env.prod
+__pycache__/

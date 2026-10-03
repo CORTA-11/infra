@@ -31,6 +31,10 @@ These instructions apply to the entire `infra` repository.
   also runs after a deployment targeting one service.
 - Production chat summarisation runs through the private `ai-service` container.
   `deploy.sh` generates the `AI_SERVICE_TOKEN` shared with `core-api`.
+- For local installer changes, preserve existing credentials and keep generated
+  MinIO/API credentials paired. Compose mounts secret files with host ownership:
+  keep the host secret directory owner-only and mounted files readable by the
+  non-root service users. Keep cloned sources readable for non-root image users.
 
 ## Change guidelines
 

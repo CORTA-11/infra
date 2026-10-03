@@ -30,6 +30,9 @@ jobs:
           docker compose config --quiet
           docker compose -f docker-compose.prod.yaml config --quiet
           bash -n deploy.sh
+          bash -n setup-local.sh
+      - name: Check local installer credential generation and reruns
+        run: python3 -m unittest discover -s tests
       - name: Create the external application network
         run: docker network create synodus-network
       - name: Validate Envoy configuration
